@@ -11,11 +11,11 @@
             "program": "${file}"
         },
         {
-            "name": "train language model",
+            "name": "train single",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/language_model",
-            "cwd": "${workspaceFolder}/language_model",
+            "program": "${workspaceFolder}/single.py",
+            "cwd": "${workspaceFolder}",
             "args": [
                 
             ]

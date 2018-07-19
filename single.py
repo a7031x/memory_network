@@ -19,15 +19,16 @@ def make_options():
 def run_epoch(opt, model, feeder, optimizer):
     model.train()
     criterion = models.make_loss_compute()
+    feeder.prepare('train')
     while not feeder.eof():
-        stories, queries, answers = feeder.next(opt.batch_size)
+        stories, queries, answers, _, _, _ = feeder.next(opt.batch_size)
         logits = model(func.tensor(stories), func.tensor(queries))
         loss = criterion(logits, func.tensor(answers))
         optimizer.zero_grad()
         loss.backward()
         clip_grad_norm_(model.parameters(), opt.max_grad_norm)
         optimizer.step()
-        print(f'------ITERATION {feeder.iteration}, {feeder.cursor}/{feeder.size}, loss: {loss.tolist():>.4F}')
+        #print(f'------ITERATION {feeder.iteration}, {feeder.cursor}/{feeder.size}, loss: {loss.tolist():>.4F}')
 
 
 class Logger(object):

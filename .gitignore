@@ -2,3 +2,4 @@ data
 checkpoint
 generate
 output
+__pycache__

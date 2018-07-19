@@ -6,9 +6,13 @@ import torch.nn as nn
 import data
 import numpy as np
 import func
+import utils
+import os
+
 
 class Model(nn.Module):
     def __init__(self, vocab_size, embedding_size, max_sentence_size, hops):
+        super(Model, self).__init__()
         self.hops = hops
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
         self.C = nn.ModuleList()
@@ -60,7 +64,7 @@ class Model(nn.Module):
 
             u.append(u_k)
         
-        return torch.matmul(u_k, self.C[-1].transpose(0, 1))
+        return torch.matmul(u_k, self.C[-1].weight.transpose(0, 1))
 
 
 class SingleWordLoss(nn.Module):
@@ -85,7 +89,7 @@ def make_loss_compute():
 
 def build_model(opt, dataset=None):
     dataset = dataset or data.Dataset(opt)
-    model = Model(dataset.vocab_size, opt.embedding_size, dataset.max_sentence_size, opt.hops)
+    model = Model(dataset.vocab_size, opt.embedding_size, dataset.sentence_size, opt.hops)
     if func.gpu_available():
         model = model.cuda()
     return model
@@ -98,3 +102,50 @@ def build_train_model(opt, dataset=None):
     optimizer = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], lr=opt.learning_rate)
     feeder.prepare('train')
     return model, optimizer, feeder
+
+
+def load_or_create_models(opt, train):
+    if os.path.isfile(opt.ckpt_path):
+        ckpt = torch.load(opt.ckpt_path, map_location=lambda storage, location: storage)
+        model_options = ckpt['model_options']
+        for k, v in model_options.items():
+            setattr(opt, k, v)
+            print('-{}: {}'.format(k, v))
+    else:
+        ckpt = None
+    if train:
+        model, optimizer, feeder = build_train_model(opt)
+    else:
+        model = build_model(opt)
+    if ckpt is not None:
+        model.load_state_dict(ckpt['model'])
+        if train:
+            optimizer.load_state_dict(ckpt['optimizer'])
+            feeder.load_state(ckpt['feeder'])
+    if train:
+        return model, optimizer, feeder, ckpt
+    else:
+        return model, ckpt
+
+
+def restore(opt, model, optimizer, feeder):
+    ckpt = torch.load(opt.ckpt_path, map_location=lambda storage, location: storage)
+    if model is not None:
+        model.load_state_dict(ckpt['model'])
+    if optimizer is not None:
+        optimizer.load_state_dict(ckpt['optimizer'])
+    if feeder is not None:
+        feeder.load_state(ckpt['feeder'])
+
+
+def save_models(opt, model, optimizer, feeder):
+    #model_options = ['char_hidden_size', 'encoder_hidden_size', 'rnn_type']
+    model_options = []
+    model_options = {k:getattr(opt, k) for k in model_options}
+    utils.ensure_folder(opt.ckpt_path)
+    torch.save({
+        'model':  model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'feeder': feeder.state(),
+        'model_options': model_options
+        }, opt.ckpt_path)
