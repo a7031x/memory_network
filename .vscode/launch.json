@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "current",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}"
+        },
+        {
+            "name": "train language model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/language_model",
+            "cwd": "${workspaceFolder}/language_model",
+            "args": [
+                
+            ]
+        }
+    ]
+}
