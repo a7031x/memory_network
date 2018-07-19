@@ -17,9 +17,12 @@ class Model(nn.Module):
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
         self.C = nn.ModuleList()
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
-        assert self.encoding.requires_grad == False
         for _ in range(hops):
             self.C.append(nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID))
+        assert self.encoding.requires_grad == False
+        assert self.A.weight.requires_grad
+        for embedding in self.C:
+            assert embedding.weight.requires_grad
 
 
     def position_encoding(self, sentence_size, embedding_size):
@@ -40,9 +43,8 @@ class Model(nn.Module):
 
     def forward(self, stories, queries):
         q_emb = self.A(queries)#[batch,slen,dim]
-        self.encoding = 1
-        u_0 = (q_emb * self.encoding).sum(1)#[batch, dim]
-        u = [u_0]
+        #self.encoding = 1
+        u_k = (q_emb * self.encoding).sum(1)#[batch, dim]
 
         for hop in range(self.hops):
             if hop == 0:
@@ -50,16 +52,16 @@ class Model(nn.Module):
             else:
                 emb_A = self.C[hop-1](stories)
             A = (emb_A * self.encoding).sum(2)#[batch, mlen, dim]
-            dotted = torch.einsum('bmd,bd->bm', (A, u[-1]))#[batch,mlen]
+            dotted = torch.einsum('bmd,bd->bm', (A, u_k))#[batch,mlen]
+            #mask = stories.sum(-1) != 0
+            #dotted -= (1-mask.float()) * 10000
             probs = nn.functional.softmax(dotted, -1).clone()#[batch,mlen]
 
             emb_C = self.C[hop](stories)#[batch,mlen,slen,dim]
             C = (emb_C * self.encoding).sum(2)#[batch,mlen,dim]
 
-            o_k = torch.einsum('bmd,bm->bd',(C, probs))
-            u_k = u[-1] + o_k
-
-            u.append(u_k)
+            o_k = torch.einsum('bmd,bm->bd', (C, probs))
+            u_k = u_k + o_k
         
         return torch.matmul(u_k, self.C[-1].weight.transpose(0, 1))
 
@@ -96,6 +98,7 @@ def build_train_model(opt, dataset=None):
     dataset = dataset or data.Dataset(opt)
     model = build_model(opt, dataset)
     feeder = data.TrainFeeder(dataset)
+    #optimizer = torch.optim.SGD([p for p in model.parameters() if p.requires_grad], lr=opt.learning_rate)
     optimizer = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], lr=opt.learning_rate)
     feeder.prepare('train')
     return model, optimizer, feeder
@@ -126,6 +129,8 @@ def load_or_create_models(opt, train):
 
 
 def restore(opt, model, optimizer, feeder):
+    if not os.path.isfile(opt.ckpt_path):
+        return
     ckpt = torch.load(opt.ckpt_path, map_location=lambda storage, location: storage)
     if model is not None:
         model.load_state_dict(ckpt['model'])
@@ -137,7 +142,7 @@ def restore(opt, model, optimizer, feeder):
 
 def save_models(opt, model, optimizer, feeder):
     #model_options = ['char_hidden_size', 'encoder_hidden_size', 'rnn_type']
-    model_options = []
+    model_options = ['embedding_size', 'hops']
     model_options = {k:getattr(opt, k) for k in model_options}
     utils.ensure_folder(opt.ckpt_path)
     torch.save({

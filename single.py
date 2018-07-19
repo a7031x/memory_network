@@ -19,27 +19,32 @@ def make_options():
 def run_epoch(opt, model, feeder, optimizer):
     model.train()
     criterion = models.make_loss_compute()
-    feeder.prepare('train')
-    while not feeder.eof():
-        stories, queries, answers, _, _, _ = feeder.next(opt.batch_size)
+    total_loss = 0
+    while True:
+        stories, queries, answers, s, q, _ = feeder.next(opt.batch_size)
         logits = model(func.tensor(stories), func.tensor(queries))
         loss = criterion(logits, func.tensor(answers))
         optimizer.zero_grad()
         loss.backward()
         clip_grad_norm_(model.parameters(), opt.max_grad_norm)
         optimizer.step()
-        #print(f'------ITERATION {feeder.iteration}, {feeder.cursor}/{feeder.size}, loss: {loss.tolist():>.4F}')
+        total_loss += loss.tolist()
+        if feeder.eof():
+            break
+    print(f'------ITERATION {feeder.iteration}, loss: {total_loss:>.4F}')
 
 
 class Logger(object):
     def __init__(self, opt):
         self.output_file = opt.summary_file
         self.lines = list(utils.read_all_lines(self.output_file))
+        self.max_lines = opt.max_log_size
 
 
     def __call__(self, message):
         print(message)
         self.lines.append(message)
+        self.lines = self.lines[:self.max_lines]
         utils.write_all_lines(self.output_file, self.lines)
 
 
@@ -56,7 +61,7 @@ def train(steps=400, evaluate_size=None):
         run_epoch(opt, model, feeder, optimizer)
         accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size)
         if accuracy > last_accuracy:
-            models.save_models(opt, model, optimizer, feeder)
+        #    models.save_models(opt, model, optimizer, feeder)
             last_accuracy = accuracy
             log(f'ITERATION {feeder.iteration}. MODEL SAVED WITH ACCURACY {accuracy:>.2F}.')
         else:
