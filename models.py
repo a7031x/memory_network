@@ -15,14 +15,21 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.hops = hops
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
+        self.reset_parameters(self.A)
         self.C = nn.ModuleList()
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
         for _ in range(hops):
-            self.C.append(nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID))
+            C = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
+            self.reset_parameters(C)
+            self.C.append(C)
         assert self.encoding.requires_grad == False
         assert self.A.weight.requires_grad
         for embedding in self.C:
             assert embedding.weight.requires_grad
+
+
+    def reset_parameters(self, x):
+        x.weight.data = x.weight.data / 10
 
 
     def position_encoding(self, sentence_size, embedding_size):
@@ -66,6 +73,20 @@ class Model(nn.Module):
         return torch.matmul(u_k, self.C[-1].weight.transpose(0, 1))
 
 
+    def load(self, filename):
+        import pickle
+        with open(filename, 'rb') as file:
+            nps = pickle.load(file)
+            self.A = nn.Embedding.from_pretrained(func.tensor(nps['A']), freeze=False)
+            self.A.padding_idx = data.PAD_ID
+            C = nps['C']
+            for i in range(len(C)):
+                self.C[i] = nn.Embedding.from_pretrained(func.tensor(C[i]), freeze=False)
+                self.C[i].padding_idx = data.PAD_ID
+                assert self.C[i].weight.requires_grad
+            assert self.A.weight.requires_grad
+
+
 class SingleWordLoss(nn.Module):
     def __init__(self):
         super(SingleWordLoss, self).__init__()
@@ -89,6 +110,7 @@ def make_loss_compute():
 def build_model(opt, dataset=None):
     dataset = dataset or data.Dataset(opt)
     model = Model(dataset.vocab_size, opt.embedding_size, dataset.sentence_size, opt.hops)
+    #model.load('./export.pkl')
     if func.gpu_available():
         model = model.cuda()
     return model

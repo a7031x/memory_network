@@ -125,7 +125,7 @@ class Feeder(object):
             # Make the last word of each sentence the time 'word' which 
             # corresponds to vector of lookup table
             for i in range(len(ss)):
-                ss[i][-1] = len(word_idx) - memory_size - i + len(ss)
+                ss[i][-1] = len(word_idx) - memory_size - i + len(ss) - 1
 
             # pad to memory_size
             lm = max(0, memory_size - len(ss))
