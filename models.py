@@ -39,28 +39,24 @@ class Model(nn.Module):
 
 
     def forward(self, stories, queries):
-        q_emb = self.A(queries)
-        u_0 = (q_emb * self.encoding).sum(1)
+        q_emb = self.A(queries)#[batch,slen,dim]
+        self.encoding = 1
+        u_0 = (q_emb * self.encoding).sum(1)#[batch, dim]
         u = [u_0]
 
         for hop in range(self.hops):
             if hop == 0:
-                emb_A = self.A(stories)
+                emb_A = self.A(stories)#[batch,mlen,slen,dim]
             else:
                 emb_A = self.C[hop-1](stories)
-            A = (emb_A * self.encoding).sum(2)
-            u_temp = u[-1].unsqueeze(-1).transpose(1, 2)
-            dotted = (A * u_temp).sum(2)
+            A = (emb_A * self.encoding).sum(2)#[batch, mlen, dim]
+            dotted = torch.einsum('bmd,bd->bm', (A, u[-1]))#[batch,mlen]
+            probs = nn.functional.softmax(dotted, -1).clone()#[batch,mlen]
 
-            probs = nn.functional.softmax(dotted, -1)
-            probs_temp = probs.unsqueeze(-1).transpose(1, 2)
+            emb_C = self.C[hop](stories)#[batch,mlen,slen,dim]
+            C = (emb_C * self.encoding).sum(2)#[batch,mlen,dim]
 
-            emb_C = self.C[hop](stories)
-            C = (emb_C * self.encoding).sum(2)
-
-            c_temp = C.transpose(1, 2)
-            o_k = (c_temp * probs_temp).sum(2)
-
+            o_k = torch.einsum('bmd,bm->bd',(C, probs))
             u_k = u[-1] + o_k
 
             u.append(u_k)

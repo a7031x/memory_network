@@ -69,7 +69,7 @@ class Dataset(object):
 
         vocab = sorted(reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a in data)))
         word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
-
+        word_idx['<PAD>'] = 0
         max_story_size = max(map(len, (s for s, _, _ in data)))
         #mean_story_size = int(np.mean([ len(s) for s, _, _ in data]))
         sentence_size = max(map(len, chain.from_iterable(s for s, _, _ in data)))
@@ -80,7 +80,7 @@ class Dataset(object):
         for i in range(memory_size):
             word_idx['time{}'.format(i+1)] = len(word_idx)
 
-        vocab_size = len(word_idx) + 1 # +1 for nil word
+        vocab_size = len(word_idx)
         sentence_size = max(query_size, sentence_size) # for the position
         sentence_size += 1  # +1 for time words
 
