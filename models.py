@@ -17,6 +17,7 @@ class Model(nn.Module):
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
         self.C = nn.ModuleList()
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
+        assert self.encoding.requires_grad == False
         for _ in range(hops):
             self.C.append(nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID))
 

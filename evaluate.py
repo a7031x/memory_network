@@ -19,11 +19,12 @@ def evaluate_accuracy(model, dataset, batch_size=64, size=None, profile='dev'):
         matches = (predicts == func.tensor(answers)).sum().tolist()
         total_matches += matches
         total += len(answers)
-        for statements, query, answer in zip(stories_text, queries_text, answers_text):
+        for statements, query, answer, predict in zip(stories_text, queries_text, answers_text, predicts.tolist()):
             lines.append('------------------------------------')
             lines += statements
-            lines.append(f'-> query:  {query}')
-            lines.append(f'-> answer: {answer}')
+            lines.append(f'-> query:   {query}')
+            lines.append(f'-> predict: {feeder.id_to_word(predict)}')
+            lines.append(f'-> answer:  {answer}')
         #print(f'{feeder.cursor}/{size}')
     accuracy = total_matches / total
     message = f'ACCURACY: {accuracy:>.2F}, Matches: {total_matches}, Total: {total}'

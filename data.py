@@ -78,7 +78,7 @@ class Dataset(object):
 
         # Add time words/indexes
         for i in range(memory_size):
-            word_idx['time{}'.format(i+1)] = 'time{}'.format(i+1)
+            word_idx['time{}'.format(i+1)] = len(word_idx)
 
         vocab_size = len(word_idx) + 1 # +1 for nil word
         sentence_size = max(query_size, sentence_size) # for the position
@@ -88,6 +88,7 @@ class Dataset(object):
         self.vocab_size = vocab_size
         self.word_idx = word_idx
         self.memory_size = memory_size
+        self.i2w = {k:v for v,k in self.word_idx.items()}
 
     
 class Feeder(object):
@@ -202,6 +203,10 @@ class TrainFeeder(Feeder):
         return S, Q, A, stories, queries, answers
 
                 
+    def id_to_word(self, word):
+        return self.dataset.i2w[word]
+    
+
 def align1d(value, mlen, fill=0):
     return value + [fill] * (mlen - len(value))
 
