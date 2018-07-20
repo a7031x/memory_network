@@ -21,7 +21,7 @@ def run_epoch(opt, model, feeder, optimizer):
     criterion = models.make_loss_compute()
     total_loss = 0
     while True:
-        stories, queries, answers, s, q, _ = feeder.next(opt.batch_size)
+        stories, queries, answers, _, _, _, _ = feeder.next(opt.batch_size)
         logits = model(func.tensor(stories), func.tensor(queries))
         loss = criterion(logits, func.tensor(answers))
         optimizer.zero_grad()

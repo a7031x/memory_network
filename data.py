@@ -3,71 +3,28 @@ import utils
 import random
 import re
 import numpy as np
+import babi
 from six.moves import range, reduce
 from itertools import chain
 
 
 PAD_ID = 0
 
-def tokenize(sent):
-    '''Return the tokens of a sentence including punctuation.
-    >>> tokenize('Bob dropped the apple. Where is the apple?')
-    ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
-    '''
-    return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
-
-
-def parse_stories(lines, only_supporting=False):
-    '''Parse stories provided in the bAbI tasks format
-    If only_supporting is true, only the sentences that support the answer are kept.
-    '''
-    data = []
-    story = []
-    for line in lines:
-        line = str.lower(line)
-        nid, line = line.split(' ', 1)
-        nid = int(nid)
-        if nid == 1:
-            story = []
-        if '\t' in line: # question
-            q, a, supporting = line.split('\t')
-            q = tokenize(q)
-            #a = tokenize(a)
-            # answer is one vocab word even if it's actually multiple words
-            a = [a]
-            substory = None
-
-            # remove question marks
-            if q[-1] == "?":
-                q = q[:-1]
-
-            if only_supporting:
-                # Only select the related substory
-                supporting = map(int, supporting.split())
-                substory = [story[i - 1] for i in supporting]
-            else:
-                # Provide all the substories
-                substory = [x for x in story if x]
-
-            data.append((substory, q, a))
-            story.append('')
-        else: # regular sentence
-            # remove periods
-            sent = tokenize(line)
-            if sent[-1] == ".":
-                sent = sent[:-1]
-            story.append(sent)
-    return data
-
-
 class Dataset(object):
     def __init__(self, opt):
-        self.train_set = parse_stories(utils.read_all_lines(opt.single_fact_train_file))
-        self.test_set = parse_stories(utils.read_all_lines(opt.single_fact_test_file))
-        data = self.train_set + self.test_set
-        self.train_set, self.dev_set = self.train_set[:900], self.train_set[900:]
-
-        vocab = sorted(reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a in data)))
+        self.types = {}
+        self.train_set, self.dev_set, self.test_set = [], [], []
+        for train_file, test_file, tid, type in babi.enumerate_dataset():
+            train_set =  babi.parse_stories(utils.read_all_lines(train_file))
+            test_set =  babi.parse_stories(utils.read_all_lines(test_file))
+            train_size = len(train_set) * 9 // 10
+            train_set, dev_set = train_set[:train_size], train_set[train_size:]
+            self.train_set.append(self.add_type(train_set, tid))
+            self.dev_set.append(self.add_type(dev_set, tid))
+            self.test_set.append(self.add_type(test_set, tid))
+            self.types[tid] = type
+        data = self.train_set + self.dev_set + self.test_set
+        vocab = sorted(reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a, _ in data)))
         word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
         word_idx['<PAD>'] = 0
         max_story_size = max(map(len, (s for s, _, _ in data)))
@@ -90,7 +47,11 @@ class Dataset(object):
         self.memory_size = memory_size
         self.i2w = {k:v for v,k in self.word_idx.items()}
 
-    
+
+    def add_type(self, dataset, tid):
+        return [(s,q,a,tid) for s,q,a in dataset]
+
+
 class Feeder(object):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -113,7 +74,8 @@ class Feeder(object):
         S = []
         Q = []
         A = []
-        for story, query, answer in data:
+        T = []
+        for story, query, answer, tid in data:
             ss = []
             for i, sentence in enumerate(story, 1):
                 ls = max(0, sentence_size - len(sentence))
@@ -142,7 +104,8 @@ class Feeder(object):
             S.append(ss)
             Q.append(q)
             A.append(y)
-        return np.array(S, dtype=np.int64), np.array(Q, dtype=np.int64), np.array(A, dtype=np.int64)
+            T.append(tid)
+        return np.array(S, dtype=np.int64), np.array(Q, dtype=np.int64), np.array(A, dtype=np.int64), np.array(T, dtype=np.int)
 
 
 class TrainFeeder(Feeder):
@@ -184,6 +147,10 @@ class TrainFeeder(Feeder):
         return self.cursor == self.size
 
 
+    def type(self, tid):
+        return self.dataset.types[tid]
+
+        
     def next(self, batch_size):
         if self.eof():
             self.iteration += 1
@@ -198,9 +165,9 @@ class TrainFeeder(Feeder):
         stories = [[' '.join(x) for x in y] for y in stories]
         queries = [' '.join(x) for x in queries]
         answers = [' '.join(x) for x in answers]
-        S, Q, A = self.vectorize_data(batch)
+        S, Q, A, T = self.vectorize_data(batch)
         self.cursor += size
-        return S, Q, A, stories, queries, answers
+        return S, Q, A, T, stories, queries, answers
 
                 
     def id_to_word(self, word):
