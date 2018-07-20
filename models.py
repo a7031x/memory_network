@@ -18,6 +18,7 @@ class Model(nn.Module):
         self.reset_parameters(self.A)
         self.C = nn.ModuleList()
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
+        self.gru = nn.GRUCell(embedding_size, embedding_size)
         for _ in range(hops):
             C = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
             self.reset_parameters(C)
@@ -29,7 +30,7 @@ class Model(nn.Module):
 
 
     def reset_parameters(self, x):
-        x.weight.data = x.weight.data / 10
+        x.weight.data = x.weight.data / 2
 
 
     def position_encoding(self, sentence_size, embedding_size):
@@ -68,7 +69,8 @@ class Model(nn.Module):
             C = (emb_C * self.encoding).sum(2)#[batch,mlen,dim]
 
             o_k = torch.einsum('bmd,bm->bd', (C, probs))
-            u_k = u_k + o_k
+            #u_k = u_k + o_k
+            u_k = self.gru(o_k, u_k)
         
         return torch.matmul(u_k, self.C[-1].weight.transpose(0, 1))
 
