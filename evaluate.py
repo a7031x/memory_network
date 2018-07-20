@@ -28,7 +28,7 @@ def evaluate_accuracy(model, dataset, batch_size=64, size=None, profile='dev'):
             total[tid] += 1
     for tid in sorted(total.keys()):
         accuracy = total_matches[tid] / total[tid]
-        message = f'{tid}. {feeder.type(tid):26s}: {accuracy:>.2F}'
+        message = f'{tid:2d}. {feeder.type(tid):26s}: {accuracy:>.2F}'
         lines.append(message)
         print(message)
     utils.write_all_lines(output_file, lines)
