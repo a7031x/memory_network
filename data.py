@@ -1,4 +1,3 @@
-
 import utils
 import random
 import re
@@ -14,23 +13,23 @@ class Dataset(object):
     def __init__(self, opt):
         self.types = {}
         self.train_set, self.dev_set, self.test_set = [], [], []
-        for train_file, test_file, tid, type in babi.enumerate_dataset():
+        for train_file, test_file, tid, type in babi.enumerate_dataset(opt.babi_en_folder):
             train_set =  babi.parse_stories(utils.read_all_lines(train_file))
             test_set =  babi.parse_stories(utils.read_all_lines(test_file))
             train_size = len(train_set) * 9 // 10
             train_set, dev_set = train_set[:train_size], train_set[train_size:]
-            self.train_set.append(self.add_type(train_set, tid))
-            self.dev_set.append(self.add_type(dev_set, tid))
-            self.test_set.append(self.add_type(test_set, tid))
+            self.train_set += self.add_type(train_set, tid)
+            self.dev_set += self.add_type(dev_set, tid)
+            self.test_set += self.add_type(test_set, tid)
             self.types[tid] = type
         data = self.train_set + self.dev_set + self.test_set
         vocab = sorted(reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a, _ in data)))
         word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
         word_idx['<PAD>'] = 0
-        max_story_size = max(map(len, (s for s, _, _ in data)))
+        max_story_size = max(map(len, (s for s, _, _, _ in data)))
         #mean_story_size = int(np.mean([ len(s) for s, _, _ in data]))
-        sentence_size = max(map(len, chain.from_iterable(s for s, _, _ in data)))
-        query_size = max(map(len, (q for _, q, _ in data)))
+        sentence_size = max(map(len, chain.from_iterable(s for s, _, _, _ in data)))
+        query_size = max(map(len, (q for _, q, _, _ in data)))
         memory_size = min(opt.memory_size, max_story_size)
 
         # Add time words/indexes
@@ -150,7 +149,7 @@ class TrainFeeder(Feeder):
     def type(self, tid):
         return self.dataset.types[tid]
 
-        
+
     def next(self, batch_size):
         if self.eof():
             self.iteration += 1
@@ -161,7 +160,7 @@ class TrainFeeder(Feeder):
         size = min(self.size - self.cursor, batch_size)
         batch = self.data_index[self.cursor:self.cursor+size]
         batch = [self.data[idx] for idx in batch]
-        stories, queries, answers = zip(*batch)
+        stories, queries, answers, _ = zip(*batch)
         stories = [[' '.join(x) for x in y] for y in stories]
         queries = [' '.join(x) for x in queries]
         answers = [' '.join(x) for x in answers]
@@ -169,7 +168,7 @@ class TrainFeeder(Feeder):
         self.cursor += size
         return S, Q, A, T, stories, queries, answers
 
-                
+       
     def id_to_word(self, word):
         return self.dataset.i2w[word]
     

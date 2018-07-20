@@ -11,10 +11,10 @@
             "program": "${file}"
         },
         {
-            "name": "train single",
+            "name": "train",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/single.py",
+            "program": "${workspaceFolder}/train.py",
             "cwd": "${workspaceFolder}",
             "args": [
                 

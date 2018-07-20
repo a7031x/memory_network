@@ -1,3 +1,6 @@
+import os
+import re
+
 def tokenize(sent):
     '''Return the tokens of a sentence including punctuation.
     >>> tokenize('Bob dropped the apple. Where is the apple?')
@@ -49,3 +52,24 @@ def parse_stories(lines, only_supporting=False):
     return data
 
     
+def enumerate_dataset(folder):
+    r = {}
+    types = {}
+    for filename in os.listdir(folder):
+        def subs(span):
+            return filename[span[0]:span[1]]
+
+        m = re.search('qa(.*)_(.*)_(.*).txt', filename)
+        tid = int(subs(m.span(1)))
+        type = subs(m.span(2))
+        dataset = subs(m.span(3))
+        if tid in r:
+            r[tid][dataset] = filename
+        else:
+            r[tid] = {dataset: filename}
+        types[tid] = type
+    for tid in types:
+        train_path = os.path.join(folder, r[tid]['train'])
+        test_path = os.path.join(folder, r[tid]['test'])
+        type = types[tid]
+        yield train_path, test_path, tid, type

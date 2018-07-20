@@ -26,4 +26,5 @@ def data_opts(parser):
     group.add_argument('-memory_size', type=int, default=50)
     group.add_argument('-single_fact_train_file', type=str, default='./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_train.txt')
     group.add_argument('-single_fact_test_file', type=str, default='./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
+    group.add_argument('-babi_en_folder', type=str, default='./data/tasks_1-20_v1-2/en')
 

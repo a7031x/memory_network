@@ -26,11 +26,11 @@ def evaluate_accuracy(model, dataset, batch_size=64, size=None, profile='dev'):
             lines.append(f'-> answer:  {answer}')
             total_matches[tid] += 1 if answer == predict else 0
             total[tid] += 1
-    for tid in total:
+    for tid in sorted(total.keys()):
         accuracy = total_matches[tid] / total[tid]
         message = f'{tid}. {feeder.type(tid)}: {accuracy:>.2F}, Matches: {total_matches[tid]}, Total: {total[tid]}'
         lines.append(message)
         print(message)
     utils.write_all_lines(output_file, lines)
-    return np.sum(total_matches.values()) / np.sum(total.values())
+    return sum(total_matches.values()) / sum(total.values())
 
