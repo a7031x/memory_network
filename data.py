@@ -31,7 +31,7 @@ class Dataset(object):
         sentence_size = max(map(len, chain.from_iterable(s for s, _, _, _ in data)))
         query_size = max(map(len, (q for _, q, _, _ in data)))
         memory_size = min(opt.memory_size, max_story_size)
-
+        print(f'memory size: {memory_size}, sentence size: {sentence_size}, query size: {query_size}')
         # Add time words/indexes
         for i in range(memory_size):
             word_idx['time{}'.format(i+1)] = len(word_idx)
