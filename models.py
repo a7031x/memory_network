@@ -8,6 +8,7 @@ import numpy as np
 import func
 import utils
 import os
+import rnn
 
 
 class Model(nn.Module):
@@ -18,6 +19,20 @@ class Model(nn.Module):
         self.reset_parameters(self.A)
         self.C = nn.ModuleList()
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
+        self.qrnn = rnn.RNNEncoder(
+            input_size=embedding_size,
+            hidden_size=embedding_size,
+            num_layers=2,
+            bidirectional=True,
+            batch_first=True)
+        self.srnn = rnn.RNNEncoder(
+            input_size=embedding_size,
+            hidden_size=embedding_size,
+            num_layers=2,
+            bidirectional=True,
+            batch_first=True)
+        self.dense_state = nn.Linear(embedding_size*4, embedding_size, bias=False)
+        self.reset_parameters(self.dense_state)
         for _ in range(hops):
             C = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
             self.reset_parameters(C)
@@ -30,6 +45,18 @@ class Model(nn.Module):
 
     def reset_parameters(self, x):
         x.weight.data = x.weight.data / 10
+
+
+    def run_state(self, rnn, emb):
+        if emb.dim() == 4:
+            n, m, l, d = emb.shape
+            state = self.run_state(rnn, emb.view(n*m, l, d))
+            return state.view(n, m, -1)
+        lengths = torch.ones(emb.shape[0], emb.shape[1])
+        _, state = rnn(emb, lengths)
+        n = emb.shape[0]
+        state = torch.cat([state[0], state[1]], -1).view(n, -1)
+        return self.dense_state(state)
 
 
     def position_encoding(self, sentence_size, embedding_size):
@@ -51,14 +78,14 @@ class Model(nn.Module):
     def forward(self, stories, queries):
         q_emb = self.A(queries)#[batch,slen,dim]
         #self.encoding = 1
-        u_k = (q_emb * self.encoding).sum(1)#[batch, dim]
+        u_k = self.run_state(self.qrnn, q_emb * self.encoding)#[batch, dim]
 
         for hop in range(self.hops):
             if hop == 0:
                 emb_A = self.A(stories)#[batch,mlen,slen,dim]
             else:
                 emb_A = self.C[hop-1](stories)
-            A = (emb_A * self.encoding).sum(2)#[batch, mlen, dim]
+            A = self.run_state(self.srnn, emb_A * self.encoding)#[batch, mlen, dim]
             dotted = torch.einsum('bmd,bd->bm', (A, u_k))#[batch,mlen]
             #mask = stories.sum(-1) != 0
             #dotted -= (1-mask.float()) * 10000
