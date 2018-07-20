@@ -111,7 +111,8 @@ def make_loss_compute():
 def build_model(opt, dataset=None):
     dataset = dataset or data.Dataset(opt)
     model = Model(dataset.vocab_size, opt.embedding_size, dataset.sentence_size, opt.hops)
-    #model.load('./export.pkl')
+    if os.path.isfile('./export.pkl')
+        model.load('./export.pkl')
     if func.gpu_available():
         model = model.cuda()
     return model
