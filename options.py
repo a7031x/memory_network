@@ -2,7 +2,7 @@ import argparse
 
 def model_opts(parser):
     group = parser.add_argument_group('model')
-    group.add_argument('-embedding_size', type=int, default=20)
+    group.add_argument('-embedding_size', type=int, default=40)
     group.add_argument('-hops', type=int, default=3)
     group.add_argument('-ckpt_path', type=str, default='./checkpoint/model.pt')
 
