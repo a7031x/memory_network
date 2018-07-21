@@ -92,7 +92,7 @@ class SingleWordLoss(nn.Module):
     def __init__(self):
         super(SingleWordLoss, self).__init__()
         self.lsm = nn.LogSoftmax(dim=-1)
-        self.criterion = torch.nn.NLLLoss(size_average=True)
+        self.criterion = torch.nn.NLLLoss(size_average=False)
 
 
     def forward(self, logits, target):
