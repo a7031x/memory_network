@@ -32,6 +32,7 @@ def run_epoch(opt, model, feeder, optimizer):
         if feeder.eof():
             break
     print(f'------ITERATION {feeder.iteration}, loss: {total_loss:>.4F}')
+    return total_loss
 
 
 class Logger(object):
@@ -54,9 +55,12 @@ def train(steps=400, evaluate_size=None):
     model, optimizer, feeder, _ = models.load_or_create_models(opt, True)
     log = Logger(opt)
     last_accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size)
-    while True:
-        run_epoch(opt, model, feeder, optimizer)
+    loss_lines, accuracy_lines = [], []
+    for itr in range(60):
+        loss = run_epoch(opt, model, feeder, optimizer)
         accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size)
+        loss_lines.append(f'{loss:>.4F}')
+        accuracy_lines.append(f'{accuracy:>.4F}')
         if accuracy > last_accuracy:
             #models.save_models(opt, model, optimizer, feeder)
             last_accuracy = accuracy
@@ -70,5 +74,6 @@ def train(steps=400, evaluate_size=None):
         if feeder.iteration % 10 == 0:
             accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size, profile='test')
             log(f'=========ITERATION {feeder.iteration}. TEST ACCURACY: {accuracy:>.2F}===========')
-
+        utils.write_all_lines('./output/loss.txt', loss_lines)
+        utils.write_all_lines('./output/accuracy.txt', accuracy_lines)
 train()
