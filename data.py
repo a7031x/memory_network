@@ -159,7 +159,7 @@ class TrainFeeder(Feeder):
 
         size = min(self.size - self.cursor, batch_size)
         batch = self.data_index[self.cursor:self.cursor+size]
-        batch = [self.data[idx] for idx in batch]
+        batch = [self.data[idx] for idx in range(32)]
         stories, queries, answers, _ = zip(*batch)
         stories = [[' '.join(x) for x in y] for y in stories]
         queries = [' '.join(x) for x in queries]
