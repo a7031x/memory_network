@@ -110,7 +110,6 @@ class Feeder(object):
 class TrainFeeder(Feeder):
     def __init__(self, dataset):
         super(TrainFeeder, self).__init__(dataset)
-        np.random.seed(0)
 
 
     def prepare(self, type):

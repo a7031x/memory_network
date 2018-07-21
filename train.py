@@ -5,6 +5,7 @@ import models
 import random
 import func
 import utils
+import numpy as np
 from torch.nn.utils import clip_grad_norm_
 
 
@@ -20,6 +21,8 @@ def run_epoch(opt, model, feeder, optimizer):
     model.train()
     criterion = models.make_loss_compute()
     total_loss = 0
+    loss_list = []
+    qs = []
     while True:
         stories, queries, answers, _, _, _, _ = feeder.next(opt.batch_size)
         logits = model(func.tensor(stories), func.tensor(queries))
@@ -28,11 +31,14 @@ def run_epoch(opt, model, feeder, optimizer):
         loss.backward()
         clip_grad_norm_(model.parameters(), opt.max_grad_norm)
         optimizer.step()
-        total_loss += loss.tolist()
+        loss_t = loss.tolist()
+        total_loss += loss_t
+        qs.append(queries[0])
+        loss_list.append(loss_t)
         if feeder.eof():
             break
     print(f'------ITERATION {feeder.iteration}, loss: {total_loss:>.4F}')
-    return total_loss
+    return qs, loss_list, total_loss
 
 
 class Logger(object):
@@ -52,15 +58,17 @@ class Logger(object):
 def train(steps=400, evaluate_size=None):
     func.use_last_gpu()
     opt = make_options()
+    np.random.seed(0)
     model, optimizer, feeder, _ = models.load_or_create_models(opt, True)
     log = Logger(opt)
     last_accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size)
-    loss_lines, accuracy_lines = [], []
+    loss_lines, accuracy_lines, details = [], [], []
     for itr in range(60):
-        loss = run_epoch(opt, model, feeder, optimizer)
+        qs, loss_list, loss = run_epoch(opt, model, feeder, optimizer)
         accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size)
-        loss_lines.append(f'{loss:>.4F}')
+        loss_lines.append(f'{loss:>6.4F} {accuracy:>.4F}')
         accuracy_lines.append(f'{accuracy:>.4F}')
+        details += [f'{dl:>4.4F} [{",".join([str(x) for x in q])}]' for dl, q in zip(loss_list, qs)]
         if accuracy > last_accuracy:
             #models.save_models(opt, model, optimizer, feeder)
             last_accuracy = accuracy
@@ -74,6 +82,7 @@ def train(steps=400, evaluate_size=None):
         if feeder.iteration % 10 == 0:
             accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size, profile='test')
             log(f'=========ITERATION {feeder.iteration}. TEST ACCURACY: {accuracy:>.2F}===========')
+        utils.write_all_lines('./output/details.txt', details)
         utils.write_all_lines('./output/loss.txt', loss_lines)
         utils.write_all_lines('./output/accuracy.txt', accuracy_lines)
 train()
