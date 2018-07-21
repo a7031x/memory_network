@@ -33,6 +33,12 @@ def softmax_mask(val, mask):
     return -1E18 * (1 - mask.float()) + val
     
 
+def onehot(val, dim):
+    shape = list(val.shape) + [dim]
+    onehot = zeros(*shape).scatter_(-1, val.unsqueeze(-1), 1)
+    return onehot
+
+
 def gpu_available():
     return torch.cuda.is_available()
 
