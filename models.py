@@ -29,7 +29,7 @@ class Model(nn.Module):
 
 
     def reset_parameters(self, x):
-        x.weight.data.normal_(0, 0.1)
+        x.weight.data.normal_(0, 0.05)
         x.weight.data[x.padding_idx].fill_(0)
 
 
@@ -111,8 +111,8 @@ def make_loss_compute():
 def build_model(opt, dataset=None):
     dataset = dataset or data.Dataset(opt)
     model = Model(dataset.vocab_size, opt.embedding_size, dataset.sentence_size, opt.hops)
-    external_checkpoint = './init.pkl'
-    model.load(external_checkpoint)
+    #external_checkpoint = './init.pkl'
+    #model.load(external_checkpoint)
     if func.gpu_available():
         model = model.cuda()
     return model
