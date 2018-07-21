@@ -110,6 +110,7 @@ class Feeder(object):
 class TrainFeeder(Feeder):
     def __init__(self, dataset):
         super(TrainFeeder, self).__init__(dataset)
+        np.random.seed(0)
 
 
     def prepare(self, type):
@@ -139,7 +140,7 @@ class TrainFeeder(Feeder):
 
 
     def shuffle_index(self):
-        random.shuffle(self.data_index)
+        np.random.shuffle(self.data_index)
 
 
     def eof(self):

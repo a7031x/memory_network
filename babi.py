@@ -68,7 +68,7 @@ def enumerate_dataset(folder):
         else:
             r[tid] = {dataset: filename}
         types[tid] = type
-    for tid in types:
+    for tid in sorted(types.keys()):
         train_path = os.path.join(folder, r[tid]['train'])
         test_path = os.path.join(folder, r[tid]['test'])
         type = types[tid]
