@@ -91,13 +91,11 @@ class Model(nn.Module):
 class SingleWordLoss(nn.Module):
     def __init__(self):
         super(SingleWordLoss, self).__init__()
-        self.lsm = nn.LogSoftmax(dim=-1)
-        self.criterion = torch.nn.NLLLoss(size_average=False)
+        self.criterion = torch.nn.CrossEntropyLoss(size_average=False)
 
 
     def forward(self, logits, target):
-        output = self.lsm(logits)
-        loss = self.criterion(output, target)
+        loss = self.criterion(logits, target)
         return loss
 
 
