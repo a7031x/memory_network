@@ -17,7 +17,7 @@ class Model(nn.Module):
         self.hops = hops
         self.rnn_type = rnn_type
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
-     #   self.reset_parameters(self.A)
+        self.reset_parameters(self.A)
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
         num_layers = 2
         self.qrnn = rnn.RNNEncoder(
@@ -49,7 +49,7 @@ class Model(nn.Module):
 
 
     def reset_parameters(self, x):
-        x.weight.data.normal_(0, 0.05)
+        x.weight.data.normal_(0, 0.1)
         x.weight.data[x.padding_idx].fill_(0)
 
 
