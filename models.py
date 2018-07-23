@@ -43,7 +43,7 @@ class Model(nn.Module):
             type='gru')
         self.gru = nn.GRUCell(embedding_size*num_layers, embedding_size*num_layers)
         self.dense_state = nn.Linear(embedding_size*num_layers, embedding_size, bias=False)
-        self.reset_parameters(self.dense_state)
+        #self.reset_parameters(self.dense_state)
         for _ in range(hops):
             C = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
             self.reset_parameters(C)
