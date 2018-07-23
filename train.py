@@ -77,16 +77,16 @@ def train(steps=60, anneal_steps=15, evaluate_size=None):
         if accuracy > last_accuracy:
             #models.save_models(opt, model, optimizer, feeder)
             last_accuracy = accuracy
-            log(f'ITERATION {feeder.iteration}. MODEL SAVED WITH ACCURACY {accuracy:>.2F}.')
+            log(f'ITERATION {feeder.iteration}. MODEL SAVED WITH ACCURACY {accuracy:>.4F}.')
         else:
             if random.randint(0, 4) == 0:
                 models.restore(opt, model, optimizer, feeder)
-                log(f'ITERATION {feeder.iteration}. MODEL RESTORED {accuracy:>.2F}/{last_accuracy:>.2F}.')
+                log(f'ITERATION {feeder.iteration}. MODEL RESTORED {accuracy:>.4F}/{last_accuracy:>.4F}.')
             else:
-                log(f'ITERATION {feeder.iteration}. CONTINUE TRAINING {accuracy:>.2F}/{last_accuracy:>.2F}.')
+                log(f'ITERATION {feeder.iteration}. CONTINUE TRAINING {accuracy:>.4F}/{last_accuracy:>.4F}.')
         if feeder.iteration % 10 == 0:
             accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size, profile='test')
-            log(f'=========ITERATION {feeder.iteration}. TEST ACCURACY: {accuracy:>.2F}===========')
+            log(f'=========ITERATION {feeder.iteration}. TEST ACCURACY: {accuracy:>.4F}===========')
         utils.write_all_lines('./output/details.txt', details)
         utils.write_all_lines('./output/loss.txt', loss_lines)
         utils.write_all_lines('./output/accuracy.txt', accuracy_lines)
