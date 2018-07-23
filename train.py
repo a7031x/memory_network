@@ -55,7 +55,7 @@ class Logger(object):
         utils.write_all_lines(self.output_file, self.lines)
 
 
-def train(steps=60, evaluate_size=None):
+def train(steps=60, anneal_steps=15, evaluate_size=None):
     func.use_last_gpu()
     opt = make_options()
     np.random.seed(0)
@@ -64,7 +64,7 @@ def train(steps=60, evaluate_size=None):
     last_accuracy = evaluate.evaluate_accuracy(model, feeder.dataset, batch_size=opt.batch_size)
     loss_lines, accuracy_lines, details = [], [], []
     for itr in range(steps):
-        anneal = 2.0 ** (itr // steps)
+        anneal = 2.0 ** (itr // anneal_steps)
         lr = opt.learning_rate / anneal
         for group in optimizer.param_groups:
             group['lr'] = lr

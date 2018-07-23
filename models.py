@@ -12,7 +12,7 @@ import rnn
 
 
 class Model(nn.Module):
-    def __init__(self, vocab_size, embedding_size, max_sentence_size, hops, rnn_type='lstm'):
+    def __init__(self, vocab_size, embedding_size, max_sentence_size, hops, rnn_type='gru'):
         super(Model, self).__init__()
         self.hops = hops
         self.rnn_type = rnn_type
@@ -43,14 +43,14 @@ class Model(nn.Module):
             type=rnn_type)
         gru_hidden_size = embedding_size*self.crnn.num_states//2
         self.gru = nn.GRUCell(gru_hidden_size, gru_hidden_size)
-        self.output_projection = nn.Linear(gru_hidden_size, vocab_size, bias=False)
+        self.dense_state = nn.Linear(gru_hidden_size, embedding_size, bias=False)
+        self.reset_parameters(self.dense_state)
         assert self.encoding.requires_grad == False
         assert self.A.weight.requires_grad
 
 
     def reset_parameters(self, x):
-        x.weight.data.normal_(0, 0.1)
-        x.weight.data[x.padding_idx].fill_(0)
+        x.weight.data /= 2
 
 
     def run_state(self, rnn, emb, state):
@@ -111,7 +111,8 @@ class Model(nn.Module):
             o_k = torch.einsum('bmd,bm->bd', (self.restack(C), probs))
             #u_k = u_k + o_k
             u_k = self.stack(self.gru(o_k, self.restack(u_k)))
-        return self.output_projection(self.restack(u_k))
+        u = self.dense_state(self.restack(u_k))
+        return torch.matmul(u, self.A.weight.transpose(0, 1))
 
 
 class SingleWordLoss(nn.Module):
