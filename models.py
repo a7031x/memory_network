@@ -12,9 +12,10 @@ import rnn
 
 
 class Model(nn.Module):
-    def __init__(self, vocab_size, embedding_size, max_sentence_size, hops):
+    def __init__(self, vocab_size, embedding_size, max_sentence_size, hops, rnn_type='lstm'):
         super(Model, self).__init__()
         self.hops = hops
+        self.rnn_type = rnn_type
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
      #   self.reset_parameters(self.A)
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
@@ -25,23 +26,24 @@ class Model(nn.Module):
             num_layers=num_layers,
             bidirectional=True,
             batch_first=True,
-            type='gru')
+            type=rnn_type)
         self.srnn = rnn.RNNEncoder(
             input_size=embedding_size,
             hidden_size=embedding_size,
             num_layers=num_layers,
             bidirectional=True,
             batch_first=True,
-            type='gru')
+            type=rnn_type)
         self.crnn = rnn.RNNEncoder(
             input_size=embedding_size,
             hidden_size=embedding_size,
             num_layers=num_layers,
             bidirectional=True,
             batch_first=True,
-            type='gru')
-        self.gru = nn.GRUCell(embedding_size*num_layers, embedding_size*num_layers)
-        self.output_projection = nn.Linear(embedding_size*num_layers, vocab_size, bias=False)
+            type=rnn_type)
+        gru_hidden_size = embedding_size*self.crnn.num_states//2
+        self.gru = nn.GRUCell(gru_hidden_size, gru_hidden_size)
+        self.output_projection = nn.Linear(gru_hidden_size, vocab_size, bias=False)
         assert self.encoding.requires_grad == False
         assert self.A.weight.requires_grad
 
@@ -57,8 +59,11 @@ class Model(nn.Module):
             state = self.run_state(rnn, emb.view(n*m, l, d), state.view(rnn.num_states, n*m, -1) if state is not None else None)
             return state.view(rnn.num_states, n, m, -1)
         lengths = torch.ones(emb.shape[0], emb.shape[1])
+        if self.rnn_type == 'lstm' and state is not None:
+            state = state.chunk(2)
         _, state = rnn(emb, lengths, state)
-        n = emb.shape[0]
+        if self.rnn_type == 'lstm':
+            state = torch.cat(state, 0)
         return state
 
 

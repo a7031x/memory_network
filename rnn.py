@@ -163,7 +163,7 @@ class RNNEncoder(EncoderBase):
     def __init__(self, input_size, num_layers, hidden_size, bidirectional, dropout=0.0, type='lstm', use_bridge=False, batch_first=True):
         super(RNNEncoder, self).__init__()
         hidden_size = hidden_size//2 if bidirectional else hidden_size
-        self.num_states = num_layers * (2 if bidirectional else 1)
+        self.num_states = num_layers * (2 if bidirectional else 1) * (2 if type=='lstm' else 1)
         rnn = {
             'lstm': nn.LSTM,
             'gru': nn.GRU
