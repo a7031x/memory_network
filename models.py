@@ -16,8 +16,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.hops = hops
         self.A = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
-        self.reset_parameters(self.A)
-        self.C = nn.ModuleList()
+     #   self.reset_parameters(self.A)
         self.encoding = self.position_encoding(max_sentence_size, embedding_size)
         num_layers = 2
         self.qrnn = rnn.RNNEncoder(
@@ -42,16 +41,9 @@ class Model(nn.Module):
             batch_first=True,
             type='gru')
         self.gru = nn.GRUCell(embedding_size*num_layers, embedding_size*num_layers)
-        self.dense_state = nn.Linear(embedding_size*num_layers, embedding_size, bias=False)
-        #self.reset_parameters(self.dense_state)
-        for _ in range(hops):
-            C = nn.Embedding(vocab_size, embedding_size, padding_idx=data.PAD_ID)
-            self.reset_parameters(C)
-            self.C.append(C)
+        self.output_projection = nn.Linear(embedding_size*num_layers, vocab_size, bias=False)
         assert self.encoding.requires_grad == False
         assert self.A.weight.requires_grad
-        for embedding in self.C:
-            assert embedding.weight.requires_grad
 
 
     def reset_parameters(self, x):
@@ -100,40 +92,21 @@ class Model(nn.Module):
         q_emb = self.A(queries)#[batch,slen,dim]
         #self.encoding = 1
         u_k = self.run_state(self.qrnn, q_emb * self.encoding, None)#[num_states, batch, dim]
-
-        for hop in range(self.hops):
+        A = None
+        for _ in range(self.hops):
             emb_A = self.A(stories)#[batch,mlen,slen,dim]
-            if hop == 0:
-                A = self.run_state(self.srnn, emb_A * self.encoding, None)#[num_states, batch, mlen, dim]
-            else:
-                A = self.run_state(self.srnn, emb_A * self.encoding, A)
+            A = self.run_state(self.srnn, emb_A * self.encoding, A)
             dotted = torch.einsum('bmd,bd->bm', [self.restack(A), self.restack(u_k)])#[batch,mlen]
             #mask = stories.sum(-1) != 0
             #dotted -= (1-mask.float()) * 10000
             probs = nn.functional.softmax(dotted, -1).clone()#[batch,mlen]
-
             #emb_C = self.C[hop](stories)#[batch,mlen,slen,dim]
             #C = (emb_C * self.encoding).sum(2)#[batch,mlen,dim]
             C = self.run_state(self.crnn, emb_A * self.encoding, None)#[num_states, batch, mlen, dim]
             o_k = torch.einsum('bmd,bm->bd', (self.restack(C), probs))
             #u_k = u_k + o_k
             u_k = self.stack(self.gru(o_k, self.restack(u_k)))
-        u = self.dense_state(self.restack(u_k))
-        return torch.matmul(u, self.A.weight.transpose(0, 1))
-
-
-    def load(self, filename):
-        import pickle
-        with open(filename, 'rb') as file:
-            nps = pickle.load(file)
-            self.A = nn.Embedding.from_pretrained(func.tensor(nps['A']), freeze=False)
-            self.A.padding_idx = data.PAD_ID
-            C = nps['C']
-            for i in range(len(C)):
-                self.C[i] = nn.Embedding.from_pretrained(func.tensor(C[i]), freeze=False)
-                self.C[i].padding_idx = data.PAD_ID
-                assert self.C[i].weight.requires_grad
-            assert self.A.weight.requires_grad
+        return self.output_projection(self.restack(u_k))
 
 
 class SingleWordLoss(nn.Module):
@@ -157,8 +130,6 @@ def make_loss_compute():
 def build_model(opt, dataset=None):
     dataset = dataset or data.Dataset(opt)
     model = Model(dataset.vocab_size, opt.embedding_size, dataset.sentence_size, opt.hops)
-    external_checkpoint = './init.pkl'
-    model.load(external_checkpoint)
     if func.gpu_available():
         model = model.cuda()
     return model

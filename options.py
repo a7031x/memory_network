@@ -13,7 +13,7 @@ def train_opts(parser):
     group.add_argument('-learning_rate', type=float, default=1E-2)
     group.add_argument('-max_grad_norm', type=float, default=40.0)
     group.add_argument('-max_log_size', type=int, default=1000)
-    group.add_argument('-optimizer', type=str, default='sgd')
+    group.add_argument('-optimizer', type=str, default='adam')
     group.add_argument('-summary_file', type=str, default='./output/summary.txt')
 
 
